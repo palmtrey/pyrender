@@ -235,6 +235,92 @@ class Renderer(object):
         # Draw text
         font.render_string(text, x, y, scale, align)
 
+    def opengl_check_errors(self):
+        err = glGetError()
+
+        if err != 0:
+            raise ValueError(f"OpenGL error with error={err}")
+
+        status = glCheckFramebufferStatus(GL_READ_FRAMEBUFFER)
+
+        if status != GL_FRAMEBUFFER_COMPLETE:
+            raise ValueError(
+                f"The OpenGL framebuffer is not complete with status={status}"
+            )
+
+        buffer_binding_status = glGetIntegerv(GL_FRAMEBUFFER_BINDING)
+
+        print(f"{buffer_binding_status=}")
+
+    def opengl_check_framebuffer_attachments(self):
+        attachments = [
+            GL_COLOR_ATTACHMENT0,
+            GL_DEPTH_ATTACHMENT,
+            GL_STENCIL_ATTACHMENT,
+        ]
+
+        # glBindFramebuffer(GL_READ_FRAMEBUFFER, 0)
+        self.opengl_check_errors()
+
+        # res = glGetFramebufferAttachmentParameteriv(
+        #     GL_READ_FRAMEBUFFER,
+        #     GL_FRONT,
+        #     GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE ,
+        # )  # (GLenum target, GLenum attachment, GLenum pname, GLint *params)
+
+        # print(f"{res=}")
+
+        attachment_type = glGetFramebufferAttachmentParameteriv(
+            GL_READ_FRAMEBUFFER, GL_FRONT, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE
+        )
+
+        red_size = glGetFramebufferAttachmentParameteriv(
+            GL_READ_FRAMEBUFFER, GL_FRONT, GL_FRAMEBUFFER_ATTACHMENT_RED_SIZE
+        )
+
+        green_size = glGetFramebufferAttachmentParameteriv(
+            GL_READ_FRAMEBUFFER, GL_FRONT, GL_FRAMEBUFFER_ATTACHMENT_GREEN_SIZE
+        )
+
+        blue_size = glGetFramebufferAttachmentParameteriv(
+            GL_READ_FRAMEBUFFER, GL_FRONT,  GL_FRAMEBUFFER_ATTACHMENT_BLUE_SIZE
+        )
+
+        alpha_size = glGetFramebufferAttachmentParameteriv(
+            GL_READ_FRAMEBUFFER, GL_FRONT,   GL_FRAMEBUFFER_ATTACHMENT_ALPHA_SIZE
+        )
+
+        depth_size = glGetFramebufferAttachmentParameteriv(
+            GL_READ_FRAMEBUFFER, GL_FRONT,  GL_FRAMEBUFFER_ATTACHMENT_DEPTH_SIZE 
+        )
+
+        stencil_size = glGetFramebufferAttachmentParameteriv(
+            GL_READ_FRAMEBUFFER, GL_FRONT,   GL_FRAMEBUFFER_ATTACHMENT_STENCIL_SIZE 
+        )
+
+        component_type = glGetFramebufferAttachmentParameteriv(
+            GL_READ_FRAMEBUFFER, GL_FRONT,   GL_FRAMEBUFFER_ATTACHMENT_COMPONENT_TYPE 
+        )
+
+        color_encoding = glGetFramebufferAttachmentParameteriv(
+            GL_READ_FRAMEBUFFER, GL_FRONT,    GL_FRAMEBUFFER_ATTACHMENT_COLOR_ENCODING 
+        )
+
+
+        color_clear_value = glGetIntegerv(GL_COLOR_CLEAR_VALUE)
+
+        print(f"Attachment GL_FRONT:")
+        print(f"  Type: {attachment_type}")
+        print(f"  Red Size: {red_size}")
+        print(f"  Green Size: {green_size}")
+        print(f"  Blue Size: {blue_size}")
+        print(f"  Alpha Size: {alpha_size}")
+        print(f"  Depth Size: {depth_size}")
+        print(f"  Stencil Size: {stencil_size}")
+        print(f"  Component Type: {component_type}")
+        print(f"  Color Encoding: {color_encoding}")
+        print(f"  Color Clear Value: {color_clear_value}")
+
     def read_color_buf(self):
         """Read and return the current viewport's color buffer.
 
@@ -246,74 +332,53 @@ class Renderer(object):
             The color buffer in RGB byte format.
         """
 
-        def check_framebuffer_attachments():
-            attachments = [
-                GL_COLOR_ATTACHMENT0,
-                GL_DEPTH_ATTACHMENT,
-                GL_STENCIL_ATTACHMENT,
-            ]
+        print(f"{glGetString(GL_VERSION)}")
+        self.opengl_check_framebuffer_attachments()
 
-            for attachment in attachments:
-                attachment_type = glGetFramebufferAttachmentParameteriv(
-                    GL_FRAMEBUFFER, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE
-                )
+        self.opengl_check_errors()
 
-                if attachment_type == 0:
-                    print(f"Attachment {attachment} is not attached.")
-                    continue
-
-                attachment_name = glGetFramebufferAttachmentParameteriv(
-                    GL_FRAMEBUFFER, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME
-                )
-                texture_level = glGetFramebufferAttachmentParameteriv(
-                    GL_FRAMEBUFFER, attachment, GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_LEVEL
-                )
-                cube_map_face = glGetFramebufferAttachmentParameteriv(
-                    GL_FRAMEBUFFER,
-                    attachment,
-                    GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_CUBE_MAP_FACE,
-                )
-
-                print(f"Attachment {attachment}:")
-                print(f"  Type: {attachment_type}")
-                print(f"  Name: {attachment_name}")
-                print(f"  Texture Level: {texture_level}")
-                print(f"  Cube Map Face: {cube_map_face}")
-
-        status = glCheckFramebufferStatus(GL_FRAMEBUFFER)
-        print(f"{status=}")
-
-        check_framebuffer_attachments()
+        
 
         # Extract color image from frame buffer
         width, height = self.viewport_width, self.viewport_height
 
-        print(f"Viewport size: {width}x{height}")
+        # Debug: Print the viewport dimensions
+        print(f"Viewport dimensions: width={width}, height={height}")
 
         glBindFramebuffer(GL_READ_FRAMEBUFFER, 0)
-
-        err = glGetError()
-        print(f"{err=}")
-        status = glCheckFramebufferStatus(GL_FRAMEBUFFER)
-        print(f"{status=}")
+        self.opengl_check_errors()
 
         glReadBuffer(GL_FRONT)
+        self.opengl_check_errors()
 
-        err = glGetError()
-        print(f"{err=}")
-        status = glCheckFramebufferStatus(GL_FRAMEBUFFER)
-        print(f"{status=}")
+        color_buf = glReadPixels(0, 0, width, height, GL_RED, GL_UNSIGNED_BYTE)
+        self.opengl_check_errors()
 
-        color_buf = glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE)
-
-        err = glGetError()
-        print(f"{err=}")
-        status = glCheckFramebufferStatus(GL_FRAMEBUFFER)
-        print(f"{status=}")
+        # Debug: Check the raw buffer size
+        if color_buf is None:
+            print("Error: glReadPixels returned None.")
+        else:
+            print(f"Raw color buffer size: {len(color_buf)} bytes")
 
         # Re-format them into numpy arrays
         color_im = np.frombuffer(color_buf, dtype=np.uint8)
-        color_im = color_im.reshape((height, width, 3))
+
+        # Debug: Check the numpy array size and some sample data
+        print(f"Numpy array size: {color_im.size}")
+        print(f"First few elements in the color buffer: {color_im[:10]}")
+
+        if color_im.size == 0 or not np.any(color_im != 0):
+            raise ValueError("Color buffer is empty.")
+
+        try:
+            color_im = color_im.reshape((height, width, 3))
+        except ValueError:  # If transparent channel included
+            color_im = color_im.reshape((height, width, 4))
+            color_im_transparent_channel = color_im[:, :, 3]
+            color_im = color_im[:, :, :3]  # Discard transparent channel
+
+            print(f"{color_im_transparent_channel=}")
+
         color_im = np.flip(color_im, axis=0)
 
         # Resize for macos if needed
@@ -336,6 +401,10 @@ class Renderer(object):
         depth_buf = glReadPixels(0, 0, width, height, GL_DEPTH_COMPONENT, GL_FLOAT)
 
         depth_im = np.frombuffer(depth_buf, dtype=np.float32)
+
+        if depth_im.size == 0 or not np.any(depth_im != 0):
+            raise ValueError("Depth buffer is empty.")
+
         depth_im = depth_im.reshape((height, width))
         depth_im = np.flip(depth_im, axis=0)
 
